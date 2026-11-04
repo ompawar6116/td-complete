@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TD Motors — Inquiries Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+<div class="login-screen" id="loginScreen">
+  <form class="login-card" id="loginForm">
+    <span class="login-badge">TD</span>
+    <h1>Inquiries Admin</h1>
+    <p>Enter the admin password to view and manage customer leads.</p>
+    <input type="password" id="loginPassword" placeholder="Admin password" autocomplete="current-password" required>
+    <label class="api-field">
+      API base URL
+      <input type="text" id="apiBaseInput" value="http://localhost:4000">
+    </label>
+    <button type="submit" class="btn">Sign in</button>
+    <p class="login-err" id="loginErr"></p>
+  </form>
+</div>
+
+<div class="dash" id="dash" hidden>
+  <header class="dash-header">
+    <div>
+      <span class="badge">TD</span>
+      <div>
+        <h1>TD Motors — Inquiries</h1>
+        <p id="dashSub">—</p>
+      </div>
+    </div>
+    <div class="dash-actions">
+      <button class="btn btn-ghost" id="refreshBtn">Refresh</button>
+      <button class="btn btn-ghost" id="logoutBtn">Sign out</button>
+    </div>
+  </header>
+
+  <div class="stat-row" id="statRow"></div>
+
+  <div class="section-tabs">
+    <button class="section-tab is-active" data-section="inquiries">Inquiries</button>
+    <button class="section-tab" data-section="inventory">Inventory</button>
+  </div>
+
+  <div id="panelInquiries">
+    <div class="filter-row" id="statusFilters"></div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Name</th>
+            <th>Contact</th>
+            <th>Brand / Model</th>
+            <th>Requirement</th>
+            <th>Message</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <p class="empty-state" id="emptyState" hidden>No inquiries yet — they'll appear here as soon as someone submits the website form.</p>
+    </div>
+  </div>
+
+  <div id="panelInventory" hidden>
+    <div class="add-car-row">
+      <button class="btn" id="addCarBtn">+ Add Car</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Brand / Model</th>
+            <th>Category</th>
+            <th>Price</th>
+            <th>Condition</th>
+            <th>Stock</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="carRows"></tbody>
+      </table>
+      <p class="empty-state" id="carEmptyState" hidden>No cars yet — click “+ Add Car” to list your first one.</p>
+    </div>
+  </div>
+
+  <!-- Add / edit car modal -->
+  <div class="modal-overlay" id="carModalOverlay" hidden>
+    <form class="modal-card" id="carForm">
+      <h2 id="carFormTitle">Add Car</h2>
+      <div class="form-grid">
+        <label>Brand<input type="text" id="cf_brand" required></label>
+        <label>Model name<input type="text" id="cf_name" required></label>
+        <label>Category
+          <select id="cf_category">
+            <option>SUV</option><option>Sedan</option><option>Hatchback</option><option>Luxury</option><option>Electric</option>
+          </select>
+        </label>
+        <label>Condition
+          <select id="cf_condition">
+            <option>New</option><option>Certified Pre-Owned</option>
+          </select>
+        </label>
+        <label>Price (display text)<input type="text" id="cf_price" placeholder="₹8.5L – ₹14.5L" required></label>
+        <label>Fuel<input type="text" id="cf_fuel" placeholder="Petrol / Diesel" required></label>
+        <label>Transmission<input type="text" id="cf_transmission" placeholder="Manual / AMT" required></label>
+        <label>Engine<input type="text" id="cf_engine" placeholder="1.2L Turbo Petrol" required></label>
+        <label>Mileage / Range<input type="text" id="cf_mileage" placeholder="17–24 km/l" required></label>
+        <label>Seating<input type="text" id="cf_seating" placeholder="5" required></label>
+        <label>Safety<input type="text" id="cf_safety" placeholder="5-star GNCAP, 6 airbags" required></label>
+        <label class="full">Description<textarea id="cf_desc" rows="3"></textarea></label>
+        <div class="full photo-field">
+          <span class="photo-label">Car photo <span style="color:var(--steel-dim);font-weight:400;">(JPG, PNG or WebP, up to 5 MB. A transparent PNG looks best)</span></span>
+          <div class="photo-row">
+            <div class="photo-preview" id="photoPreview"><span>No photo</span></div>
+            <div class="photo-actions">
+              <input type="file" id="cf_photo" accept="image/jpeg,image/png,image/webp">
+              <button type="button" class="btn btn-ghost btn-sm" id="photoRemove" hidden>Remove photo</button>
+            </div>
+          </div>
+        </div>
+        <label class="full">Or paste an image URL <span style="color:var(--steel-dim);font-weight:400;">(optional, used only if no photo is uploaded)</span><input type="url" id="cf_imageUrl" placeholder="https://..."></label>
+        <label class="full">Highlights (comma-separated)<input type="text" id="cf_highlights" placeholder="5-star GNCAP, Sunroof, Connected car tech"></label>
+      </div>
+      <p class="form-err" id="carFormErr"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="carFormCancel">Cancel</button>
+        <button type="submit" class="btn" id="carFormSubmit">Save Car</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="admin.js"></script>
+</body>
+</html>
