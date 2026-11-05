@@ -18,7 +18,8 @@ const pool = new Pool({
   port: Number(process.env.DB_PORT) || 5432,
   database: process.env.DB_NAME || "td_motors",
   user: process.env.DB_USER || "postgres",
-  password: process.env.DB_PASSWORD || ""
+  password: process.env.DB_PASSWORD || "",
+  ssl: process.env.DB_SSL === "true"
 });
 
 // Map a DB row (snake_case) to the camelCase shape the rest of the app expects.
