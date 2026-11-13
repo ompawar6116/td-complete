@@ -78,6 +78,7 @@
   });
   document.getElementById("refreshBtn").addEventListener("click", () => {
     if (activeSection === "inventory") loadCars();
+    else if (activeSection === "parts") loadParts();
     else load();
   });
 
@@ -89,7 +90,10 @@
       document.querySelectorAll(".section-tab").forEach(t => t.classList.toggle("is-active", t === tab));
       document.getElementById("panelInquiries").hidden = activeSection !== "inquiries";
       document.getElementById("panelInventory").hidden = activeSection !== "inventory";
+      document.getElementById("panelParts").hidden = activeSection !== "parts";
+      document.getElementById("statRow").hidden = activeSection !== "inquiries"; // inquiry counts only belong on the Inquiries tab
       if (activeSection === "inventory" && !carsLoadedOnce) loadCars();
+      if (activeSection === "parts" && !partsLoadedOnce) loadParts();
     });
   });
 
@@ -157,9 +161,14 @@
             ${STATUSES.map(s => `<option value="${s}" ${s === i.status ? "selected" : ""}>${s}</option>`).join("")}
           </select>
         </td>
+        <td><button class="btn btn-ghost btn-sm" data-reply="${i.id}">Reply</button></td>
       </tr>`
       )
       .join("");
+
+    tbody.querySelectorAll("[data-reply]").forEach(btn => {
+      btn.addEventListener("click", () => openReply(inquiries.find(x => x.id === btn.dataset.reply)));
+    });
 
     tbody.querySelectorAll(".status-select").forEach(sel => {
       sel.addEventListener("change", async () => {
@@ -375,6 +384,285 @@
       closeCarForm();
     } catch (err) {
       carFormErr.textContent = err.message;
+    }
+  });
+
+  // ============================================================
+  // REPLY TO AN INQUIRY (the reply is emailed to the customer)
+  // ============================================================
+  const replyOverlay = document.getElementById("replyModalOverlay");
+  const replyForm = document.getElementById("replyForm");
+  const replyErr = document.getElementById("replyErr");
+  const replyMessage = document.getElementById("replyMessage");
+  const replySubmit = document.getElementById("replySubmit");
+  let replyingTo = null;
+
+  function setMsg(el, text, kind) {
+    el.textContent = text || "";
+    el.classList.toggle("form-ok", kind === "ok");
+    el.classList.toggle("form-warn", kind === "warn");
+  }
+
+  function openReply(inq) {
+    if (!inq) return;
+    replyingTo = inq;
+    document.getElementById("replyMeta").innerHTML =
+      `<div><strong>${escapeHtml(inq.name)}</strong> · ${escapeHtml(inq.email)} · ${escapeHtml(inq.phone)}</div>` +
+      `<div>${escapeHtml(inq.service)}${inq.brand ? " · " + escapeHtml(inq.brand) : ""}${inq.model ? " " + escapeHtml(inq.model) : ""}</div>` +
+      (inq.message ? `<div class="quote">${escapeHtml(inq.message)}</div>` : "");
+    document.getElementById("replyHint").textContent = `(will be emailed to ${inq.email})`;
+    replyMessage.value = "";
+    setMsg(replyErr, "");
+    replySubmit.disabled = false;
+    document.getElementById("replyHistory").hidden = true;
+    replyOverlay.hidden = false;
+    replyMessage.focus();
+    loadReplyHistory(inq.id);
+  }
+  function closeReply() { replyOverlay.hidden = true; replyingTo = null; }
+
+  async function loadReplyHistory(id) {
+    try {
+      const data = await api(`/api/inquiries/${id}/replies`);
+      if (!replyingTo || replyingTo.id !== id) return;
+      const list = data.replies || [];
+      document.getElementById("replyHistory").hidden = !list.length;
+      document.getElementById("replyHistoryList").innerHTML = list.map(r => {
+        const label = r.emailStatus === "sent" ? "emailed" : r.emailStatus === "failed" ? "email failed" : "not emailed (SMTP not set up)";
+        return `<div class="reply-item"><span class="when">${new Date(r.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}<span class="tag ${escapeHtml(r.emailStatus)}">${label}</span></span>${escapeHtml(r.message)}</div>`;
+      }).join("");
+    } catch (err) { /* history is optional; the reply form still works */ }
+  }
+
+  document.getElementById("replyCancel").addEventListener("click", closeReply);
+  replyOverlay.addEventListener("click", e => { if (e.target === replyOverlay) closeReply(); });
+
+  replyForm.addEventListener("submit", async e => {
+    e.preventDefault();
+    if (!replyingTo) return;
+    const target = replyingTo;
+    replySubmit.disabled = true;
+    setMsg(replyErr, "Sending…");
+    try {
+      const data = await api(`/api/inquiries/${target.id}/reply`, { method: "POST", body: JSON.stringify({ message: replyMessage.value }) });
+      const item = inquiries.find(x => x.id === target.id);
+      if (item && data.inquiry) item.status = data.inquiry.status;
+      renderStats();
+      renderRows();
+      replyMessage.value = "";
+      if (data.email && data.email.sent) {
+        setMsg(replyErr, `Reply emailed to ${target.email}.`, "ok");
+      } else {
+        const why = data.email && data.email.reason ? data.email.reason : "unknown reason";
+        setMsg(replyErr, `Reply saved, but the email was NOT sent (${why}). Check the SMTP settings in .env.`, "warn");
+      }
+      loadReplyHistory(target.id);
+    } catch (err) {
+      setMsg(replyErr, err.message);
+    } finally {
+      replySubmit.disabled = false;
+    }
+  });
+
+  // ============================================================
+  // SPARE PARTS stock management
+  // ============================================================
+  let parts = [];
+  let partSummary = null;
+  let partCategories = [];
+  let partsLoadedOnce = false;
+  let editingPartId = null;
+  let partStatusFilter = "All";
+  const PART_STATUSES = ["All", "In Stock", "Low Stock", "Out of Stock"];
+
+  const partModalOverlay = document.getElementById("partModalOverlay");
+  const partForm = document.getElementById("partForm");
+  const partFormErr = document.getElementById("partFormErr");
+  const partSearch = document.getElementById("partSearch");
+  const partCategoryFilter = document.getElementById("partCategoryFilter");
+
+  const inr = n => "₹" + Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 });
+  const badgeClass = st => st === "In Stock" ? "is-in" : st === "Low Stock" ? "is-low" : "is-out";
+
+  async function loadParts() {
+    try {
+      const data = await api("/api/spare-parts");
+      parts = data.parts || [];
+      partSummary = data.summary || null;
+      partCategories = data.categories || [];
+      partsLoadedOnce = true;
+      fillCategorySelects();
+      renderParts();
+    } catch (err) {
+      alert("Couldn't load spare parts: " + err.message);
+    }
+  }
+
+  function fillCategorySelects() {
+    const current = partCategoryFilter.value || "All";
+    partCategoryFilter.innerHTML = `<option value="All">All categories</option>` +
+      partCategories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
+    partCategoryFilter.value = partCategories.includes(current) ? current : "All";
+    document.getElementById("pf_category").innerHTML =
+      partCategories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
+  }
+
+  // The summary is recomputed in the browser after every change so the cards
+  // always match the table without another round-trip.
+  function computeSummary() {
+    const s = { totalParts: parts.length, totalUnits: 0, inStock: 0, lowStock: 0, outOfStock: 0, stockValue: 0 };
+    parts.forEach(p => {
+      s.totalUnits += p.quantity;
+      s.stockValue += p.quantity * p.price;
+      if (p.status === "In Stock") s.inStock++;
+      else if (p.status === "Low Stock") s.lowStock++;
+      else s.outOfStock++;
+    });
+    return s;
+  }
+
+  function renderPartStats() {
+    const s = computeSummary();
+    document.getElementById("partStats").innerHTML = [
+      ["Total parts", s.totalParts, ""],
+      ["Units in stock", s.totalUnits, ""],
+      ["In stock", s.inStock, "is-good"],
+      ["Low stock", s.lowStock, "is-warn"],
+      ["Out of stock", s.outOfStock, "is-bad"],
+      ["Stock value", inr(s.stockValue), ""]
+    ].map(([l, n, cls]) => `<div class="stat-box ${cls}"><span class="n">${n}</span><span class="l">${l}</span></div>`).join("");
+  }
+
+  function renderPartFilters() {
+    const el = document.getElementById("partStatusFilters");
+    const counts = { All: parts.length };
+    PART_STATUSES.slice(1).forEach(st => (counts[st] = parts.filter(p => p.status === st).length));
+    el.innerHTML = PART_STATUSES.map(st =>
+      `<button class="chip${st === partStatusFilter ? " is-active" : ""}" data-pstatus="${st}">${st} (${counts[st]})</button>`).join("");
+    el.querySelectorAll(".chip").forEach(btn => btn.addEventListener("click", () => {
+      partStatusFilter = btn.dataset.pstatus;
+      renderParts();
+    }));
+  }
+
+  function renderParts() {
+    renderPartStats();
+    renderPartFilters();
+    const q = partSearch.value.trim().toLowerCase();
+    const cat = partCategoryFilter.value;
+    const list = parts.filter(p =>
+      (partStatusFilter === "All" || p.status === partStatusFilter) &&
+      (cat === "All" || p.category === cat) &&
+      (!q || [p.name, p.partNumber, p.brand, p.compatibleWith].some(v => String(v || "").toLowerCase().includes(q)))
+    );
+    const tbody = document.getElementById("partRows");
+    const empty = document.getElementById("partEmptyState");
+    if (!list.length) {
+      tbody.innerHTML = "";
+      empty.hidden = false;
+      empty.textContent = parts.length ? "No parts match your search or filters." : "No spare parts yet — click “+ Add Part” to add your first one.";
+      return;
+    }
+    empty.hidden = true;
+    tbody.innerHTML = list.map(p => `
+      <tr data-id="${p.id}">
+        <td class="cell-name">${escapeHtml(p.name)}<div class="cell-sub">${escapeHtml(p.partNumber)}${p.brand ? " · " + escapeHtml(p.brand) : ""}</div></td>
+        <td>${escapeHtml(p.category)}</td>
+        <td class="msg-cell">${escapeHtml(p.compatibleWith || "—")}</td>
+        <td>${inr(p.price)}</td>
+        <td><span class="qty-ctl">
+          <button class="qty-btn" data-qty-dec="${p.id}" ${p.quantity <= 0 ? "disabled" : ""} aria-label="Decrease quantity">−</button>
+          <span class="qty">${p.quantity}</span>
+          <button class="qty-btn" data-qty-inc="${p.id}" aria-label="Increase quantity">+</button>
+        </span><div class="cell-sub">warn at ≤ ${p.lowStockThreshold}</div></td>
+        <td><span class="status-badge ${badgeClass(p.status)}">${p.status}</span></td>
+        <td class="row-actions">
+          <button class="btn btn-ghost btn-sm" data-edit-part="${p.id}">Edit</button>
+          <button class="btn btn-danger btn-sm" data-delete-part="${p.id}">Delete</button>
+        </td>
+      </tr>`).join("");
+
+    const changeQty = async (id, delta) => {
+      const part = parts.find(x => x.id === id);
+      if (!part) return;
+      const next = Math.max(0, part.quantity + delta);
+      try {
+        const data = await api(`/api/spare-parts/${id}/quantity`, { method: "PATCH", body: JSON.stringify({ quantity: next }) });
+        Object.assign(part, data.part);
+        renderParts();
+      } catch (err) {
+        alert("Couldn't update quantity: " + err.message);
+      }
+    };
+    tbody.querySelectorAll("[data-qty-dec]").forEach(b => b.addEventListener("click", () => changeQty(b.dataset.qtyDec, -1)));
+    tbody.querySelectorAll("[data-qty-inc]").forEach(b => b.addEventListener("click", () => changeQty(b.dataset.qtyInc, 1)));
+    tbody.querySelectorAll("[data-edit-part]").forEach(b =>
+      b.addEventListener("click", () => openPartForm(parts.find(x => x.id === b.dataset.editPart))));
+    tbody.querySelectorAll("[data-delete-part]").forEach(b => b.addEventListener("click", async () => {
+      const part = parts.find(x => x.id === b.dataset.deletePart);
+      if (!part || !confirm(`Delete ${part.name} (${part.partNumber})? This can't be undone.`)) return;
+      try {
+        await api(`/api/spare-parts/${part.id}`, { method: "DELETE" });
+        parts = parts.filter(x => x.id !== part.id);
+        renderParts();
+      } catch (err) {
+        alert("Couldn't delete part: " + err.message);
+      }
+    }));
+  }
+
+  partSearch.addEventListener("input", renderParts);
+  partCategoryFilter.addEventListener("change", renderParts);
+
+  function openPartForm(part) {
+    editingPartId = part ? part.id : null;
+    document.getElementById("partFormTitle").textContent = part ? "Edit Spare Part" : "Add Spare Part";
+    document.getElementById("pf_name").value = part ? part.name : "";
+    document.getElementById("pf_partNumber").value = part ? part.partNumber : "";
+    document.getElementById("pf_category").value = part ? part.category : (partCategories[0] || "");
+    document.getElementById("pf_brand").value = part ? part.brand : "";
+    document.getElementById("pf_compatibleWith").value = part ? part.compatibleWith : "";
+    document.getElementById("pf_price").value = part ? part.price : "";
+    document.getElementById("pf_quantity").value = part ? part.quantity : "";
+    document.getElementById("pf_lowStockThreshold").value = part ? part.lowStockThreshold : 5;
+    document.getElementById("pf_description").value = part ? part.description : "";
+    partFormErr.textContent = "";
+    partModalOverlay.hidden = false;
+  }
+  function closePartForm() { partModalOverlay.hidden = true; editingPartId = null; }
+
+  document.getElementById("addPartBtn").addEventListener("click", async () => {
+    if (!partCategories.length) await loadParts(); // categories come from the API
+    openPartForm(null);
+  });
+  document.getElementById("partFormCancel").addEventListener("click", closePartForm);
+  partModalOverlay.addEventListener("click", e => { if (e.target === partModalOverlay) closePartForm(); });
+
+  partForm.addEventListener("submit", async e => {
+    e.preventDefault();
+    const payload = {
+      name: document.getElementById("pf_name").value.trim(),
+      partNumber: document.getElementById("pf_partNumber").value.trim(),
+      category: document.getElementById("pf_category").value,
+      brand: document.getElementById("pf_brand").value.trim(),
+      compatibleWith: document.getElementById("pf_compatibleWith").value.trim(),
+      price: document.getElementById("pf_price").value,
+      quantity: document.getElementById("pf_quantity").value,
+      lowStockThreshold: document.getElementById("pf_lowStockThreshold").value,
+      description: document.getElementById("pf_description").value.trim()
+    };
+    partFormErr.textContent = "Saving…";
+    try {
+      const data = editingPartId
+        ? await api(`/api/spare-parts/${editingPartId}`, { method: "PUT", body: JSON.stringify(payload) })
+        : await api("/api/spare-parts", { method: "POST", body: JSON.stringify(payload) });
+      const idx = parts.findIndex(x => x.id === data.part.id);
+      if (idx !== -1) parts[idx] = data.part; else parts.push(data.part);
+      parts.sort((a, b) => a.name.localeCompare(b.name));
+      renderParts();
+      closePartForm();
+    } catch (err) {
+      partFormErr.textContent = err.message;
     }
   });
 

@@ -26,7 +26,7 @@ h1{ font-family:var(--font-display); margin:0; }
 .dash-header p{ margin:2px 0 0; color:var(--steel); font-size:0.85rem; }
 .dash-actions{ display:flex; gap:10px; }
 
-.stat-row{ display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:18px; }
+.stat-row{ display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin-bottom:18px; }
 .stat-box{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
 .stat-box .n{ font-family:var(--font-display); font-size:1.5rem; color:var(--brass-2); display:block; }
 .stat-box .l{ font-size:0.78rem; color:var(--steel); }
@@ -57,7 +57,9 @@ tr:last-child td{ border-bottom:none; }
 .stock-toggle{ padding:6px 12px; border-radius:999px; border:1px solid var(--line-strong); background:transparent; color:var(--steel); font-size:0.78rem; cursor:pointer; font-weight:600; }
 .stock-toggle.is-in{ background:rgba(154,205,50,0.15); border-color:rgba(154,205,50,0.4); color:#B7D96B; }
 .stock-toggle.is-out{ background:rgba(230,139,139,0.12); border-color:rgba(230,139,139,0.4); color:#E68B8B; }
-.row-actions{ display:flex; gap:8px; }
+.row-actions{ white-space:nowrap; }
+.row-actions .btn{ margin-right:8px; }
+.row-actions .btn:last-child{ margin-right:0; }
 .add-car-row{ margin-bottom:16px; display:flex; justify-content:flex-end; }
 
 /* Car form modal */
@@ -79,6 +81,41 @@ tr:last-child td{ border-bottom:none; }
 .photo-preview{ width:150px; height:100px; display:grid; place-items:center; background:#101317; border:1px dashed var(--line-strong); border-radius:8px; overflow:hidden; }
 .photo-preview img{ width:100%; height:100%; object-fit:contain; }
 .photo-actions{ display:flex; flex-direction:column; gap:8px; align-items:flex-start; }
+
+/* Spare parts */
+.stat-row-parts{ grid-template-columns:repeat(6,1fr); }
+.stat-box.is-warn .n{ color:#E6C36A; }
+.stat-box.is-bad .n{ color:#E68B8B; }
+.stat-box.is-good .n{ color:#B7D96B; }
+.parts-toolbar{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+.search-input{ flex:1; min-width:220px; background:#101317; border:1px solid var(--line-strong); border-radius:8px; padding:10px 12px; color:var(--white); font-size:0.9rem; font-family:var(--font-body); }
+.parts-toolbar .status-select{ padding:10px 10px; font-size:0.86rem; }
+.status-badge{ display:inline-block; padding:5px 11px; border-radius:999px; font-size:0.76rem; font-weight:600; border:1px solid var(--line-strong); white-space:nowrap; }
+.status-badge.is-in{ background:rgba(154,205,50,0.15); border-color:rgba(154,205,50,0.4); color:#B7D96B; }
+.status-badge.is-low{ background:rgba(230,195,106,0.14); border-color:rgba(230,195,106,0.45); color:#E6C36A; }
+.status-badge.is-out{ background:rgba(230,139,139,0.12); border-color:rgba(230,139,139,0.4); color:#E68B8B; }
+.qty-ctl{ display:inline-flex; align-items:center; gap:8px; }
+.qty-ctl .qty{ min-width:34px; text-align:center; font-weight:700; font-size:0.95rem; }
+.qty-btn{ width:28px; height:28px; border-radius:8px; border:1px solid var(--line-strong); background:transparent; color:var(--white); font-size:1rem; line-height:1; cursor:pointer; }
+.qty-btn:hover{ border-color:var(--brass-2); color:var(--brass-2); }
+.qty-btn:disabled{ opacity:.35; cursor:not-allowed; }
+.hint{ color:var(--steel-dim); font-weight:400; }
+
+/* Reply modal */
+.reply-meta{ background:#101317; border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin-bottom:14px; font-size:0.86rem; color:var(--steel); }
+.reply-meta strong{ color:var(--white); }
+.reply-meta .quote{ margin-top:8px; padding-left:10px; border-left:2px solid var(--brass); color:var(--white); white-space:pre-wrap; }
+.reply-label{ display:flex; flex-direction:column; gap:6px; font-size:0.78rem; color:var(--steel-dim); }
+.reply-label textarea{ background:#101317; border:1px solid var(--line-strong); border-radius:8px; padding:10px 12px; color:var(--white); font-size:0.92rem; font-family:var(--font-body); resize:vertical; }
+.form-ok{ color:#B7D96B !important; }
+.form-warn{ color:#E6C36A !important; }
+.reply-history{ margin-top:20px; border-top:1px solid var(--line); padding-top:14px; }
+.reply-history h3{ font-family:var(--font-display); font-size:1rem; margin:0 0 10px; }
+.reply-item{ background:#101317; border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:0.85rem; white-space:pre-wrap; }
+.reply-item .when{ display:block; color:var(--steel-dim); font-size:0.75rem; margin-bottom:4px; white-space:normal; }
+.reply-item .tag{ margin-left:6px; font-weight:600; }
+.reply-item .tag.sent{ color:#B7D96B; } .reply-item .tag.failed{ color:#E68B8B; } .reply-item .tag.skipped{ color:#E6C36A; }
+@media (max-width:900px){ .stat-row-parts{ grid-template-columns:repeat(3,1fr); } .stat-row{ grid-template-columns:repeat(3,1fr); } }
 
 /* The [hidden] attribute must always win over component display rules (e.g. .modal-overlay{display:grid}). */
 [hidden]{ display:none !important; }

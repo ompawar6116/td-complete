@@ -4,6 +4,9 @@
  * Responsibilities:
  *  - Accept inquiry submissions from the frontend (POST /api/inquiries)
  *  - Serve/manage car inventory (GET/POST/PUT/DELETE /api/cars)
+ *  - Manage spare parts stock, admin only (/api/spare-parts)
+ *  - Let the admin reply to an inquiry; the reply is emailed to the customer
+ *    (POST /api/inquiries/:id/reply)
  *  - Persist both to Postgres (src/db.js, src/carsDb.js)
  *  - Email the business inbox via SMTP (src/mailer.js) — credentials live
  *    only here, in server-side environment variables, never in any file
@@ -33,6 +36,7 @@ const upload = require("./src/upload");
 
 const inquiriesRouter = require("./src/routes/inquiries");
 const carsRouter = require("./src/routes/cars");
+const sparePartsRouter = require("./src/routes/spareParts");
 const configRouter = require("./src/routes/config");
 const adminAuthRouter = require("./src/routes/adminAuth");
 
@@ -64,6 +68,7 @@ app.use("/api/admin", adminAuthRouter);   // POST /api/admin/login (public, rate
 app.use("/api/config", configRouter);     // GET  /api/config      (public, read-only)
 app.use("/api/inquiries", inquiriesRouter);
 app.use("/api/cars", carsRouter);
+app.use("/api/spare-parts", sparePartsRouter); // admin-only stock management
 
 // ---- Uploaded car photos. helmet defaults to "same-origin" for resource
 // policy, which would stop the website (a different origin) from showing

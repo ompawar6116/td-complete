@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TD Motors — Inquiries Admin</title>
+<title>TD Motors — Admin</title>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="admin.css">
 </head>
@@ -44,6 +44,7 @@
   <div class="section-tabs">
     <button class="section-tab is-active" data-section="inquiries">Inquiries</button>
     <button class="section-tab" data-section="inventory">Inventory</button>
+    <button class="section-tab" data-section="parts">Spare Parts</button>
   </div>
 
   <div id="panelInquiries">
@@ -60,6 +61,7 @@
             <th>Requirement</th>
             <th>Message</th>
             <th>Status</th>
+            <th>Reply</th>
           </tr>
         </thead>
         <tbody id="rows"></tbody>
@@ -87,6 +89,33 @@
         <tbody id="carRows"></tbody>
       </table>
       <p class="empty-state" id="carEmptyState" hidden>No cars yet — click “+ Add Car” to list your first one.</p>
+    </div>
+  </div>
+
+  <div id="panelParts" hidden>
+    <div class="stat-row stat-row-parts" id="partStats"></div>
+    <div class="parts-toolbar">
+      <input type="search" id="partSearch" class="search-input" placeholder="Search name, part number, brand or car model…">
+      <select id="partCategoryFilter" class="status-select"><option value="All">All categories</option></select>
+      <button class="btn" id="addPartBtn">+ Add Part</button>
+    </div>
+    <div class="filter-row" id="partStatusFilters"></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Part</th>
+            <th>Category</th>
+            <th>Fits</th>
+            <th>Price</th>
+            <th>Quantity</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="partRows"></tbody>
+      </table>
+      <p class="empty-state" id="partEmptyState" hidden>No spare parts yet — click “+ Add Part” to add your first one.</p>
     </div>
   </div>
 
@@ -132,6 +161,49 @@
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" id="carFormCancel">Cancel</button>
         <button type="submit" class="btn" id="carFormSubmit">Save Car</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Add / edit spare part modal -->
+  <div class="modal-overlay" id="partModalOverlay" hidden>
+    <form class="modal-card" id="partForm">
+      <h2 id="partFormTitle">Add Spare Part</h2>
+      <div class="form-grid">
+        <label>Part name<input type="text" id="pf_name" required></label>
+        <label>Part number / SKU<input type="text" id="pf_partNumber" required></label>
+        <label>Category<select id="pf_category"></select></label>
+        <label>Brand (maker)<input type="text" id="pf_brand" placeholder="Bosch, Mann, OEM…"></label>
+        <label class="full">Fits (cars it is compatible with)<input type="text" id="pf_compatibleWith" placeholder="Tata Nexon, Hyundai Creta"></label>
+        <label>Price (₹)<input type="number" id="pf_price" min="0" step="0.01" required></label>
+        <label>Quantity in stock<input type="number" id="pf_quantity" min="0" step="1" required></label>
+        <label>Low-stock level <span class="hint">(warn at or below this)</span><input type="number" id="pf_lowStockThreshold" min="0" step="1" value="5" required></label>
+        <label class="full">Notes<textarea id="pf_description" rows="3"></textarea></label>
+      </div>
+      <p class="form-err" id="partFormErr"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="partFormCancel">Cancel</button>
+        <button type="submit" class="btn" id="partFormSubmit">Save Part</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Reply to inquiry modal -->
+  <div class="modal-overlay" id="replyModalOverlay" hidden>
+    <form class="modal-card" id="replyForm">
+      <h2>Reply to inquiry</h2>
+      <div class="reply-meta" id="replyMeta"></div>
+      <label class="reply-label">Your reply <span class="hint" id="replyHint"></span>
+        <textarea id="replyMessage" rows="6" maxlength="5000" placeholder="Write your reply to the customer…" required></textarea>
+      </label>
+      <p class="form-err" id="replyErr"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="replyCancel">Close</button>
+        <button type="submit" class="btn" id="replySubmit">Send reply by email</button>
+      </div>
+      <div class="reply-history" id="replyHistory" hidden>
+        <h3>Earlier replies</h3>
+        <div id="replyHistoryList"></div>
       </div>
     </form>
   </div>

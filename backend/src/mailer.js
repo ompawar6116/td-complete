@@ -79,4 +79,59 @@ async function sendInquiryEmail(inquiry) {
   return { sent: true };
 }
 
-module.exports = { sendInquiryEmail };
+/**
+ * Builds the email a customer receives when the admin replies to their
+ * inquiry. Pure function (no I/O) so it can be unit-tested.
+ */
+function buildReplyEmail(inquiry, message) {
+  const subject = `Re: Your TD Motors inquiry — ${inquiry.service}`;
+  const text = [
+    `Hi ${inquiry.name},`,
+    "",
+    message,
+    "",
+    "Regards,",
+    "TD Motors, Kharadi, Pune",
+    "",
+    "—",
+    `You wrote to us about: ${inquiry.service}`,
+    inquiry.message ? `Your message: ${inquiry.message}` : ""
+  ].filter((line, i, arr) => !(line === "" && arr[i - 1] === "" )).join("\n");
+
+  const html = `
+    <div style="font-family:sans-serif;font-size:15px;line-height:1.55;color:#222;">
+      <p>Hi ${escapeHtml(inquiry.name)},</p>
+      <p>${escapeHtml(message).replace(/\r?\n/g, "<br>")}</p>
+      <p>Regards,<br><strong>TD Motors</strong><br>Kharadi, Pune</p>
+      <hr style="border:none;border-top:1px solid #ddd;margin:20px 0;">
+      <p style="font-size:13px;color:#777;">You wrote to us about: ${escapeHtml(inquiry.service)}${inquiry.message ? `<br>Your message: ${escapeHtml(inquiry.message)}` : ""}</p>
+    </div>
+  `;
+  return { subject, text, html };
+}
+
+/**
+ * Emails the admin's reply to the customer who made the inquiry.
+ * Returns { sent: true } or { sent: false, reason } — it never throws for
+ * "SMTP not configured"; real send errors are thrown for the caller to log.
+ */
+async function sendReplyEmail(inquiry, message) {
+  const transporter = getTransporter();
+  if (!transporter) {
+    logger.info("SMTP not configured — reply saved to the database only, no email sent.");
+    return { sent: false, reason: "SMTP not configured" };
+  }
+  const { subject, text, html } = buildReplyEmail(inquiry, message);
+  const businessEmail = process.env.BUSINESS_EMAIL || process.env.SMTP_USER;
+  await transporter.sendMail({
+    from: `"TD Motors" <${process.env.SMTP_USER}>`,
+    to: inquiry.email,
+    replyTo: businessEmail, // when the customer hits Reply, it goes to the business inbox
+    subject,
+    text,
+    html
+  });
+  return { sent: true };
+}
+
+module.exports = { sendInquiryEmail, sendReplyEmail, buildReplyEmail };

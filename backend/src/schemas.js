@@ -1,5 +1,5 @@
 const { z } = require("zod");
-const { SERVICES, INQUIRY_STATUSES, CAR_CATEGORIES, CAR_CONDITIONS } = require("./config");
+const { SERVICES, INQUIRY_STATUSES, CAR_CATEGORIES, CAR_CONDITIONS, SPARE_PART_CATEGORIES } = require("./config");
 
 const inquirySchema = z.object({
   name: z.string().trim().min(1, "Name is required."),
@@ -44,6 +44,26 @@ const stockSchema = z.object({
   inStock: z.boolean({ invalid_type_error: "inStock must be true or false." })
 });
 
+const sparePartSchema = z.object({
+  name: z.string().trim().min(1, "Part name is required."),
+  partNumber: z.string().trim().min(1, "Part number is required."),
+  category: z.enum(SPARE_PART_CATEGORIES, { errorMap: () => ({ message: `Category must be one of: ${SPARE_PART_CATEGORIES.join(", ")}` }) }),
+  brand: z.string().trim().optional().default(""),
+  compatibleWith: z.string().trim().optional().default(""),
+  price: z.coerce.number({ invalid_type_error: "Price must be a number." }).min(0, "Price can't be negative.").max(99999999, "Price is too large."),
+  quantity: z.coerce.number({ invalid_type_error: "Quantity must be a number." }).int("Quantity must be a whole number.").min(0, "Quantity can't be negative.").max(1000000, "Quantity is too large."),
+  lowStockThreshold: z.coerce.number({ invalid_type_error: "Low-stock level must be a number." }).int("Low-stock level must be a whole number.").min(0, "Low-stock level can't be negative.").max(1000000).optional().default(5),
+  description: z.string().trim().optional().default("")
+});
+
+const quantitySchema = z.object({
+  quantity: z.number({ invalid_type_error: "Quantity must be a number." }).int("Quantity must be a whole number.").min(0, "Quantity can't be negative.").max(1000000, "Quantity is too large.")
+});
+
+const replySchema = z.object({
+  message: z.string().trim().min(1, "Write a reply first.").max(5000, "Reply is too long (5000 characters max).")
+});
+
 /**
  * Runs a Zod schema and, on failure, returns the same {field: message} shape
  * the frontend already expects from data.errors — so no frontend change was
@@ -60,4 +80,4 @@ function parseOrErrors(schema, body) {
   return { data: null, errors };
 }
 
-module.exports = { inquirySchema, statusSchema, carSchema, stockSchema, parseOrErrors };
+module.exports = { inquirySchema, statusSchema, carSchema, stockSchema, sparePartSchema, quantitySchema, replySchema, parseOrErrors };

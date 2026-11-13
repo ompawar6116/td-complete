@@ -18,4 +18,9 @@ const INQUIRY_STATUSES = ["New", "Contacted", "Follow-up", "Converted", "Closed"
 const CAR_CATEGORIES = ["SUV", "Sedan", "Hatchback", "Luxury", "Electric"];
 const CAR_CONDITIONS = ["New", "Certified Pre-Owned"];
 
-module.exports = { SERVICES, INQUIRY_STATUSES, CAR_CATEGORIES, CAR_CONDITIONS };
+const SPARE_PART_CATEGORIES = [
+  "Engine", "Brakes", "Suspension", "Electrical", "Filters & Fluids",
+  "Body & Exterior", "Interior", "Tyres & Wheels", "Accessories", "Other"
+];
+
+module.exports = { SERVICES, INQUIRY_STATUSES, CAR_CATEGORIES, CAR_CONDITIONS, SPARE_PART_CATEGORIES };
